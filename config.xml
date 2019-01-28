@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget 
   version="1.0.0"
-  android-versionCode="3" 
-  ios-CFBundleVersion="3" 
+  android-versionCode="4" 
+  ios-CFBundleVersion="4" 
   id="com.sinopacific.ispy" 
   xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns="http://www.w3.org/ns/widgets" defaultlocale="en-US" >
     <name>iSPY</name>
