@@ -1,0 +1,140 @@
+<div class="page bg-color-page status_page" data-page="asset.status">
+	<div class="navbar ">
+        <div class="navbar-inner">
+            <div class="left">
+            	<a href="#" class="link backToIndex "> <i class="f7-icons">arrow_left</i></a>
+            </div>
+            <div class="left navbar_title">{{Name}}</div>
+            <div class="right">
+            	<a href="#" class="link  buttonAssetEdit"><i class="icon-pencil"></i></a>              	
+            </div>
+        </div>
+    </div>
+    
+	<div class="toolbar tabbar  ">
+	    <div class="toolbar-inner">
+	        <a href="#" class="tab-link active" data-id="asset.status" data-href="">
+	            <span class="tabbar-label"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG07}}</b></span>
+	        </a>
+            <a href="#" class="tab-link" data-id="asset.alarm" data-href="">
+                <span class="tabbar-label"><b>{{@global.LANGUAGE.ALARM_MSG01}}</b></span>
+            </a>
+	        <a href="#" class="tab-link" data-id="asset.playback" data-href="">
+	            <span class="tabbar-label"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG08}}</b></span>
+	        </a>
+	        <a href="#" class="tab-link" data-id="asset.track" data-href="">
+	            <span class="tabbar-label"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG09}}</b></span>
+	        </a>
+
+	        
+	    </div>
+	</div>
+
+    <div class="page-content">
+
+    	<div class="content-block status_block_top">
+    		<div class="row no-gutter">
+			    <div class="col-33">
+                    <img src="resources/images/svg_date.svg" alt="">
+                    <p class="color-gray"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG00}}</b></p>  
+                    <p class="position_data position_time">{{Time}}</p>
+                </div>                
+                <div class="col-33">
+                    <img src="resources/images/svg_direction.svg" alt="">
+                    <p class="color-gray"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG01}}</b></p>  
+                    <p class="position_data position_direction">{{Direction}}</p>
+                </div> 
+                <div class="col-33">
+                    <img src="resources/images/svg_speed.svg" alt="">
+                    <p class="color-gray"><b>{{@global.LANGUAGE.ASSET_STATUS_MSG02}}</b></p>  
+                    <p class="position_data position_speed">{{Speed}}</p>
+                </div>               
+			</div>
+    	</div>
+		
+		<div class="list-block  media-list no-hairlines no-hairlines-between status_block_list">                
+            <ul >
+                <li class="item-content">
+                    <div class="item-media"><img src="resources/images/svg_address.svg" alt=""></div>
+                    <div class="item-inner">                     
+                       	<div class="item-text display_address">{{Address}}</div>                     
+        		    </div>
+                </li>
+                {{#if Voltage}}
+                <li class="item-content">
+                    <div class="item-media"><img src="resources/images/svg_voltage.svg" alt=""></div>
+                    <div class="item-inner">                     	
+                       	<div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG06}} - <span class="position_voltage">{{Voltage}}</span></div>                               	        
+        		    </div>
+                </li>
+                {{/if}} 
+                <li class="item-content">
+                    <div class="item-media"><img src="resources/images/svg_acc.svg" alt=""></div>
+                    <div class="item-inner">                     	
+                       	<div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG13}} - <span class="position_acc">{{Acc}}</span></div>                    	       	       
+        		    </div>
+                </li>
+                {{#if Acc2}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_acc.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG14}} - <span class="position_acc2">{{Acc2}}</span></div>                                     
+                        </div>
+                    </li>
+                {{/if}} 
+                {{#if Mileage}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_distance2.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG10}} - <span class="position_mileage">{{Mileage}}</span></div>                                     
+                        </div>
+                    </li>
+                {{/if}}
+                {{#if Battery}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_battery.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG11}} - <span class="position_battery">{{Battery}}</span></div>                                     
+                        </div>
+                    </li>
+                {{/if}}  
+                {{#if Fuel}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_petrol.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG12}} - <span class="position_fuel">{{Fuel}}</span></div>                                     
+                        </div>
+                    </li>
+                {{/if}}   
+                {{#if Temperature}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_temperature.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG15}} - <span class="position_temperature">{{Temperature}}</span></div>                                     
+                        </div>
+                    </li>
+                {{/if}} 
+                {{#if EngineHours}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_engineHours.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG38}} - <span class="position_engineHours">{{EngineHours}}</span></div>
+                        </div>
+                    </li>
+                {{/if}}         
+                {{#if StoppedDuration}}
+                    <li class="item-content">
+                        <div class="item-media"><img src="resources/images/svg_stoppedDuration.svg" alt=""></div>
+                        <div class="item-inner">                        
+                            <div class="item-text">{{@global.LANGUAGE.ASSET_STATUS_MSG39}} - <span class="position_stoppedDuration">{{StoppedDuration}}</span></div>
+                        </div>
+                    </li>
+                {{/if}}          
+            </ul>                
+        </div>
+    	
+
+    	
+
+    </div>
+</div>

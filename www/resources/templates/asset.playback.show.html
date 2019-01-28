@@ -1,0 +1,65 @@
+<div class="page no-swipeback bg-color-page playback_show" data-page="asset.playback.show">
+	<div class="navbar   ">
+        <div class="navbar-inner">
+            <div class="left">
+            	<a href="#" class="back link "> <i class="f7-icons">arrow_left</i></a>
+            </div>
+            <div class="left navbar_title navbar_title_index">{{Name}}</div>
+           	<div class="right">
+           		<a href="#" class="link startPlayback"><i class="icon-playback"></i></a>
+                <a href="#" class="link menuRoutes"><i class="f7-icons icon-geofence_menu"></i></a>
+           	</div>
+        </div>
+    </div>
+
+    <div class="page-content">
+
+    	<div class="position_map position_map_playback"> 
+            <div class="map" id="map"></div>
+            <div class="float_button_wrapper pano_button_wrapper bg-blue">
+                <a href="#" class="link color-white pano_button" data-lat="{{Lat}}" data-lng="{{Lng}}">
+                    <i class="pano_preview_img"></i>                                   
+                </a>
+            </div>
+    	</div>
+        <div class="position_bottom position_bottom_playback">
+            <div class="row no-gutter">
+                <div class="col-100 address ">
+                    <!-- <img src="resources/images/svg_address.svg" alt=""> -->
+                    <p class="display_address">{{Address}}</p>
+                </div>
+            </div>           
+            <div class="item-input playback_show_slider">
+                <div class="range-slider ">
+                    <input class="rangeInput" name="rangeInput" type="range" min="0" max="100" step="1" value="0">
+                </div>            
+            </div>
+            
+            <div class="row no-gutter">                
+                <div class="col-33 ">
+                    <img src="resources/images/svg_date.svg" alt="">
+                    <p class="color-gray">{{@global.LANGUAGE.ASSET_TRACK_MSG00}}</p>  
+                    <p class="position_data position_time">{{Time}}</p>
+                </div>
+                <!--  <div class="col-33 ">
+                   <img src="resources/images/svg_direction.svg" alt="">
+                   <p>{{@global.LANGUAGE.ASSET_TRACK_MSG01}}</p>  
+                   <p class="position_data position_direction">{{Direction}}&deg;</p>
+                </div> -->
+                <div class="col-33 ">
+                    <img src="resources/images/svg_mileage.svg" alt="">
+                    <p class="color-gray">{{@global.LANGUAGE.ASSET_TRACK_MSG03}}</p>  
+                    <p class="position_data position_mileage">{{Mileage}}</p>
+                </div>
+                <div class="col-33 ">
+                    <img src="resources/images/svg_speed.svg" alt="">
+                    <p class="color-gray">{{@global.LANGUAGE.ASSET_TRACK_MSG02}}</p>  
+                    <p class="position_data position_speed">{{Speed}}</p>
+                </div>
+                
+            </div>
+            
+        </div>
+    </div>
+	
+</div>
