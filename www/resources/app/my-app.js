@@ -16,23 +16,22 @@ function guid() {
 
 
 function getPlusInfo(){
-    if(window.plus) {
-        window.uuid = plus.device.uuid;
-        var info = plus.push.getClientInfo();
-        localStorage.PUSH_MOBILE_TOKEN = info.token;
-        localStorage.PUSH_APPID_ID = info.appid;
-        localStorage.PUSH_APP_KEY = info.appkey;
-        localStorage.PUSH_DEVICE_TOKEN = info.clientid;
-        localStorage.DEVICE_TYPE = plus.os.name? plus.os.name : "UNKNOWN";
-    }else{
-        var uid = guid();
+    var uid = guid();
+    if(window.device) {                        
+        if(!localStorage.PUSH_MOBILE_TOKEN){
+        localStorage.PUSH_MOBILE_TOKEN = uid;
+        }       
+        localStorage.PUSH_APP_KEY = BuildInfo.packageName;
+        localStorage.PUSH_APPID_ID = BuildInfo.packageName; 
+        localStorage.DEVICE_TYPE = device.platform;   
+    }else{        
             if(!localStorage.PUSH_MOBILE_TOKEN)
             localStorage.PUSH_MOBILE_TOKEN = uid;
             if(!localStorage.PUSH_APP_KEY)
             localStorage.PUSH_APP_KEY = uid;
             if(!localStorage.PUSH_DEVICE_TOKEN)
             localStorage.PUSH_DEVICE_TOKEN = uid;
-
+            //localStorage.PUSH_DEVICE_TOKEN = "75ba1639-92ae-0c4c-d423-4fad1e48a49d"
         localStorage.PUSH_APPID_ID = 'webapp';
         localStorage.DEVICE_TYPE = "web";        
     }
@@ -41,7 +40,7 @@ function getPlusInfo(){
 var inBrowser = 0;
 var notificationChecked = 0;
 var loginTimer = 0;
-var loginDone = 0;
+localStorage.loginDone = 0;
 //var appPaused = 0;
 
 var loginInterval = null;
@@ -52,219 +51,154 @@ if( navigator.userAgent.match(/Windows/i) ){
     inBrowser = 1;
 }
 
-document.addEventListener( "plusready", onPlusReady, false ); 
+document.addEventListener("deviceready", onDeviceReady, false ); 
 
-function onPlusReady(){   
-	/*if ( navigator.userAgent.match(/Android/i) ) { 
-        var pushManager = plus.android.importClass("com.igexin.sdk.PushManager");
-        var context = plus.android.runtimeMainActivity();
-        pushManager.getInstance().turnOnPush(context);
-    }  */
-    getPlusInfo();
-
-    if　(!localStorage.ACCOUNT){
-        plus.push.clear();
+function onDeviceReady(){ 
+    //fix app images and text size
+    if (window.MobileAccessibility) {
+        window.MobileAccessibility.usePreferredTextZoom(false);    
+    }
+    if (StatusBar) {
+        StatusBar.styleDefault();
     } 
+
+    setupPush();
+
+    getPlusInfo(); 
 
     if (!inBrowser) {
         if(getUserinfo().MinorToken) {
-            //login();    
-            preLogin(); 
+            //login(); 
+            preLogin();   
         }
         else {
             logout();
         } 
     }
 
-    plus.key.addEventListener("backbutton", backFix, false);      
-    document.addEventListener("background", onAppBackground, false);
-    document.addEventListener("foreground", onAppForeground, false);    
-    document.addEventListener("resume", onAppReume, false);
+    document.addEventListener("backbutton", backFix, false); 
+    document.addEventListener("resume", onAppResume, false);
     document.addEventListener("pause", onAppPause, false);
-    document.addEventListener("newintent", onAppNewintent, false);  
 
-    plus.push.addEventListener("receive", onPushRecieve, false );
-    plus.push.addEventListener("click", onPushClick, false );
+    
 }
 
-function onPushClick (msg){     // will work in iOS and in // ANDROID go ONLY here
-    var all_msg = [];
-    var message = '';    
-    if (msg && msg.payload) {
-        var parsedPayload = isJsonString(msg.payload);
-        
-        if (parsedPayload) {
-            message = parsedPayload;
-        }else{
-            message = msg.payload;
-        }        
-        if(typeof(message)=='string'){
-            var testArr = message.split("payload");            
-            if (testArr && testArr[1]) {
-                message = testArr[1].slice(2).slice(0, -1);
-                message = isJsonString(message);
-            }            
-        } 
-        if (message) {
-            all_msg.push(message);
-        }
-    }
-    if (all_msg.length > 0) {
-        var container = $$('body');
-        if (container.children('.progressbar, .progressbar-infinite').length) return; //don't run all this if there is a current progressbar loading
-        App.showProgressbar(container); 
+function setupPush(){
+        var push = PushNotification.init({
+            "android": {
+                //"senderID": "264121929701"                             
+            },
+            "browser": {
+                pushServiceURL: 'http://push.api.phonegap.com/v1/push'
+            },            
+            "ios": {
+                "sound": true,
+                "vibration": true,
+                "badge": true
+            },
+            "windows": {}
+        });
+        console.log('after init');
 
-        loginTimer = setInterval(function() {               
-                if (loginDone) {
-                    clearInterval(loginTimer);
-                    setTimeout(function(){                       
-                         processClickOnPushNotification(all_msg); 
-                         App.hideProgressbar(container);               
-                    },1000); 
-                }
-            }, 1000);   
-    }
+        push.on('registration', function(data) {
+            console.log('registration event: ' + data.registrationId);  
+            //alert( JSON.stringify(data) );         
 
-}
-
-function onPushRecieve( msg ){      //will work in android    and iOS - if in foreground    
-    var osName = plus.os.name.toLowerCase();  
-      
-    switch ( osName ) {
-        case "android":
-            var all_msg = plus.push.getAllMessage();
-            if (all_msg === null || all_msg.length === 0) {
-                var message = {};
-                all_msg = [];
-                message.payload = msg.payload;                     
-                all_msg.push(message);
+            //localStorage.PUSH_DEVICE_TOKEN = data.registrationId;
+           
+            var oldRegId = localStorage.PUSH_DEVICE_TOKEN;
+            if (localStorage.PUSH_DEVICE_TOKEN !== data.registrationId) {               
+                // Save new registration ID
+                localStorage.PUSH_DEVICE_TOKEN = data.registrationId;
+                // Post registrationId to your app server as the value has changed
+                refreshToken(data.registrationId);
             }
-            if (all_msg) {
-                var popped = all_msg.pop();
-                all_msg = [];                
-                all_msg.push(popped);
-                
-                //setNotificationList(all_msg); 
+        });
 
+        push.on('error', function(e) {
+            //console.log("push error = " + e.message);
+            alert("push error = " + e.message);
+        });
+
+        push.on('notification', function(data) {            
+            //alert( JSON.stringify(data) );
+
+            //if user using app and push notification comes
+            if (data && data.additionalData && data.additionalData.foreground) {
+               // if application open, show popup               
+               showMsgNotification([data.additionalData]);
+            }
+            else if (data && data.additionalData && data.additionalData.payload){
+               //if user NOT using app and push notification comes
+                App.showIndicator();
+               
                 loginTimer = setInterval(function() {
-                        if (loginDone) {
-                            clearInterval(loginTimer);
-                            setTimeout(function(){
-                                processClickOnPushNotification(all_msg);
-                            },1000);                    
-                        }
-                    }, 1000); 
+                    //alert(localStorage.loginDone);
+                    if (localStorage.loginDone) {
+                        clearInterval(loginTimer);
+                        setTimeout(function(){
+                            //alert('before processClickOnPushNotification');
+                            processClickOnPushNotification([data.additionalData.payload]);
+                            App.hideIndicator();                 
+                        },1000); 
+                    }
+                }, 1000); 
             }
-        break;
 
-        case "ios":
-            //if (appPaused) {
-                if (!isJsonString(msg)) {                
-                    if (msg.aps) {
-                        var payload = JSON.stringify(msg.payload); 
-                        if (localPushLastPayload != payload) {
-                            localPushLastPayload = payload;
-                            plus.push.createMessage(msg.content, payload, {cover:false} );
-                        } 
-                    }                    
+            if (device && device.platform && device.platform.toLowerCase() == 'ios') {
+                push.finish(
+                    () => {
+                      console.log('processing of push data is finished');
+                    },
+                    () => {
+                      console.log(
+                        'something went wrong with push.finish for ID =',
+                        data.additionalData.notId
+                      );
+                    },
+                    data.additionalData.notId
+                );
+            }
+                
+        });
+
+        if　(!localStorage.ACCOUNT){
+            push.clearAllNotifications(
+                () => {
+                  console.log('success');
+                },
+                () => {
+                  console.log('error');
                 }
-            //}      
-        break;
-        default:
-        // other
-        break;
-    }       
+            );
+        }
 }
+
 
 function onAppPause(){ 
-    if ($hub) {
-        $hub.stop();
-    }
+    
 } 
-function onAppReume(){ 
-    getNewNotifications(); 
-    if ($hub) {
-        $hub.start();
-    } 
-}  
-function onAppBackground() {
-    if ($hub) {
-        $hub.stop();
+
+function onAppResume(){ 
+    
+    if (localStorage.ACCOUNT && localStorage.PASSWORD) {
+        getNewNotifications(); 
+        getNewData();
     }
-}
-function onAppForeground() {
-    getNewNotifications();  
-    if ($hub) {
-        $hub.start();
-    }      
-}
-function onAppNewintent() {
-    getNewNotifications();
-    if ($hub) {
-        $hub.start();
-    }        
-}
+}  
 
 function backFix(event){
     var page=App.getCurrentView().activePage;        
-    if(page.name=="index"){           
-        var ws=plus.webview.currentWebview();
+    if(page.name=="index"){ 
         App.confirm(LANGUAGE.PROMPT_MSG015, function () {        
-            ws.close();
+            navigator.app.exitApp();
         });
     }else{
         mainView.router.back();
     } 
 }
 
-function webSockConnect(){    
-    var MinorToken = getUserinfo().MinorToken;
-    var deviceToken = !localStorage["PUSH_DEVICE_TOKEN"]? '123' : localStorage["PUSH_DEVICE_TOKEN"];
-    $hub = hubHelper({ url :"http://api.Quikdata.co:8088/",
-                           qs: {
-                                MinorToken : MinorToken,
-                                DeviceToken : deviceToken
-                           },
-                           hub: "v1Hub"
-    },{
-        receiveMessage: function(from, msg){
-            
-        },
-        receiveNotice: function(msg){
-            
-            /*if (!inBrowser) {                
-                plus.push.clear();
-            }  */          
-                   
-            var objMsg = isJsonString(msg);      
-            if ( objMsg ) {
-                var message = {};
-                var all_msg = [];                
-                
-                message.payload = msg;
-                all_msg.push(message);
-                
-                var deviceType = localStorage.DEVICE_TYPE; 
-                if (deviceType == "web") {
-                    setNotificationList(all_msg);
-                }                
-                getNewNotifications();
-            
-                var page = App.getCurrentView().activePage;        
-                if ( page.name != "notification" ) {
-                    $$('.notification_button').addClass('new_not');
-                    showMsgNotification(all_msg);
-                    
-                }else if(deviceType == "web"){
-                    showNotification(all_msg);
-                }
-            }
-                
-        }
-    });
-            
-    $hub.start();
-}
+
 
 // Initialize your app
 var App = new Framework7({
@@ -347,6 +281,7 @@ API_URL.URL_GEOFENCE_DELETE = API_DOMIAN1 + "Device/FenceDelete";
 API_URL.URL_GET_GEOFENCE_ASSET_LIST = API_DOMIAN1 + "Device/GetFenceAssetList";
 API_URL.URL_PHOTO_UPLOAD = "http://upload.quiktrak.co/image/Upload";
 API_URL.URL_SUPPORT = "http://support.quiktrak.eu/?name={0}&loginName={1}&email={2}&phone={3}&s={4}";
+API_URL.URL_REFRESH_TOKEN = API_DOMIAN1 + "User/RefreshToken";
 
 
 
@@ -354,13 +289,13 @@ var cameraButtons = [
     {
         text: 'Take picture',
         onClick: function () {
-            getImage();
+            getImage(1);
         }
     },
     {
         text: 'From gallery',
         onClick: function () {
-            galleryImgs();
+            getImage(0);
         }
     },
     {
@@ -772,7 +707,7 @@ App.onPageInit('forgotPwd', function(page) {
         }else{
             var url = API_URL.URL_VERIFY_BY_EMAIL.format(email);             
             App.showPreloader();
-            JSON.request(url, function(result){                 
+            JSON1.request(url, function(result){                 
                     console.log(result);     
 
                     if (result.MajorCode == '000' && result.MinorCode == '0000') {
@@ -826,7 +761,7 @@ App.onPageInit('forgotPwdNew', function(page) {
             }else{
                 var url = API_URL.URL_FORGOT_PASSWORD.format(email,encodeURIComponent(newPassword),verifyCheck.CheckCode);             
                 App.showPreloader();
-                JSON.request(url, function(result){ 
+                JSON1.request(url, function(result){ 
                         if (result.MajorCode == '000' && result.MinorCode == '0000') {
                             App.alert(LANGUAGE.PASSWORD_FORGOT_MSG12);
                             $$('#account').val(email);
@@ -931,7 +866,7 @@ App.onPageInit('asset.edit', function (page) {
     
 
         App.showPreloader();
-        JSON.request(url, function(result){ 
+        JSON1.request(url, function(result){ 
                 console.log(result);                  
                 if (result.MajorCode == '000') {
                     TargetAsset.ASSET_IMG = '';
@@ -988,7 +923,7 @@ App.onPageInit('profile', function (page) {
                 user.EMail
             ); 
         App.showPreloader();
-        JSON.request(url, function(result){ 
+        JSON1.request(url, function(result){ 
                 console.log(result);                  
                 if (result.MajorCode == '000') {                    
                     userInfo.User = {
@@ -1312,7 +1247,7 @@ App.onPageInit('resetPwd', function (page) {
                     ); 
                 //console.log(url);
                 App.showPreloader();
-                JSON.request(url, function(result){ 
+                JSON1.request(url, function(result){ 
                         //console.log(result);                  
                         if (result.MajorCode == '000') { 
                             App.alert(LANGUAGE.PROMPT_MSG003, function(){
@@ -1383,7 +1318,7 @@ App.onPageInit('asset.alarm', function (page) {
             );                    
 
         App.showPreloader();
-        JSON.request(url, function(result){ 
+        JSON1.request(url, function(result){ 
                 console.log(result);                  
                 if (result.MajorCode == '000') {                    
                     setAlarmList(alarmOptions);
@@ -1928,7 +1863,7 @@ function clearUserInfo(){
         localStorage.setItem("COM.QUIKTRAK.LIVE.NOTIFICATIONLIST.BW", JSON.stringify(pushList));
     }
     
-    JSON.request(API_URL.URL_GET_LOGOUT.format(mobileToken), function(result){ console.log(result); });     
+    JSON1.request(API_URL.URL_GET_LOGOUT.format(mobileToken), function(result){ console.log(result); });     
     $$("input[name='account']").val(userName);
 }
 
@@ -1938,10 +1873,22 @@ function logout(){
     App.loginScreen();   
 }
 
+// function preLogin(){
+//     getPlusInfo();
+//     App.showPreloader();
+//     if  (localStorage.PUSH_DEVICE_TOKEN != 'null' && localStorage.PUSH_MOBILE_TOKEN != 'null'){             
+//         login();
+//     }else{              
+//         loginInterval = setInterval( reGetPushDetails, 500);                
+//     }
+// }
+
+
 function preLogin(){
-    getPlusInfo();
+    hideKeyboard();
+    //getPlusInfo();
     App.showPreloader();
-    if  (localStorage.PUSH_DEVICE_TOKEN != 'null' && localStorage.PUSH_MOBILE_TOKEN != 'null'){             
+    if  (localStorage.PUSH_DEVICE_TOKEN){             
         login();
     }else{              
         loginInterval = setInterval( reGetPushDetails, 500);                
@@ -1983,9 +1930,9 @@ function login(){
                                      encodeURIComponent(!password.val()? localStorage.PASSWORD: password.val()), 
                                      appKey, 
                                      mobileToken, 
-                                     deviceToken,  
+                                     encodeURIComponent(deviceToken), 
                                      deviceType);                                
-    JSON.request(urlLogin, function(result){
+    JSON1.request(urlLogin, function(result){
            console.log(result);
             if(result.MajorCode == '000') {
                 if(!!account.val()) {
@@ -1998,8 +1945,7 @@ function login(){
                 setAssetList(result.Data.Devices);               
                
                 //init_AssetList(); 
-                //initSearchbar();
-                webSockConnect();  
+                //initSearchbar(); 
                  getNewNotifications();    
                 App.closeModal();                
             }else{                
@@ -2763,10 +2709,38 @@ function loadAlarmPage(){
     });
 }
 
+function refreshToken(newDeviceToken){
+    console.log('refreshToken() called');
+    var userInfo = getUserinfo();
+
+    if (localStorage.PUSH_MOBILE_TOKEN && userInfo.MajorToken && userInfo.MinorToken && newDeviceToken) {
+        var data = {
+            MajorToken: userInfo.MajorToken,
+            MinorToken: userInfo.MinorToken,
+            MobileToken: localStorage.PUSH_MOBILE_TOKEN,
+            DeviceToken: newDeviceToken,             
+        };
+      
+        //console.log(urlLogin);                             
+        JSON1.requestPost(API_URL.URL_REFRESH_TOKEN, data, function(result){                
+                if(result.MajorCode == '000') {
+                                    
+                }else{                
+                   
+                }                
+            },
+            function(){ console.log('error during refresh token');  }
+        ); 
+    }else{
+        console.log('not loggined');
+    }
+        
+}
+
 
 function loadPlaybackPage(){
 	var asset = POSINFOASSETLIST[TargetAsset.ASSET_IMEI];
-
+    checkMapExisting();
 	mainView.router.load({
         url:'resources/templates/asset.playback.html',
         context:{
@@ -2868,9 +2842,11 @@ function loadTrackPage(params){
     };
 //{"title":"Acc off","type":65536,"imei":"0352544073967920","name":"Landcruiser Perth","lat":-32.032898333333335,"lng":115.86817722222216,"speed":0,"direct":0,"time":"2018-04-13 10:16:51"}
     if ((params && parseFloat(params.lat) !== 0 && parseFloat(params.lng) !== 0) || (parseFloat(asset.posInfo.lat) !== 0 && parseFloat(asset.posInfo.lng) !== 0) ){
-        if (params) {            
+        if (params) {  
+
             window.PosMarker[TargetAsset.ASSET_IMEI] = L.marker([params.lat, params.lng], {icon: Protocol.MarkerIcon[0]}); 
-            window.PosMarker[TargetAsset.ASSET_IMEI].setLatLng([params.lat, params.lng]);  
+            window.PosMarker[TargetAsset.ASSET_IMEI].setLatLng([params.lat, params.lng]); 
+
             if (asset && typeof asset.Unit !== "undefined" && typeof params.speed !== "undefined" ) {                 
                 details.speed = Protocol.Helper.getSpeedValue(asset.Unit, params.speed) + ' ' + Protocol.Helper.getSpeedUnit(asset.Unit);
             }
@@ -2899,6 +2875,7 @@ function loadTrackPage(params){
         }
         
         var deirectionCardinal = Protocol.Helper.getDirectionCardinal(details.direct);  
+
         checkMapExisting();        
         mainView.router.load({
             url:details.templateUrl,
@@ -2911,6 +2888,7 @@ function loadTrackPage(params){
                 Address: LANGUAGE.COM_MSG08,                
                 Lat: details.latlng.lat,
                 Lng: details.latlng.lng,
+                Coords: 'GPS: ' + Protocol.Helper.convertDMS(details.latlng.lat, details.latlng.lng),
             }
         });        
 
@@ -2946,7 +2924,7 @@ function updateAssetData(parameters){
     if (container.children('.progressbar, .progressbar-infinite').length) return; //don't run all this if there is a current progressbar loading
     App.showProgressbar(container);
 
-    JSON.request(url, function(result){ 
+    JSON1.request(url, function(result){ 
                                
             if (result.MajorCode == '000' ) {               
                 if (result.Data) {
@@ -3028,7 +3006,7 @@ function getHisPosArray(from, to){
     
     App.showPreloader();
    
-    JSON.request(url, function(result) {           
+    JSON1.request(url, function(result) {           
                           // console.log(result);
             if(result.MajorCode == '000') {
                 var hisArray = result.Data.HisArry;  
@@ -3189,8 +3167,8 @@ function updateAssetsPosInfo(){
         'codes': codes,
     };
     //console.log(data);
-    //JSON.request(url, function(result){ 
-    JSON.requestPost(url,data, function(result){    
+    //JSON1.request(url, function(result){ 
+    JSON1.requestPost(url,data, function(result){    
     
             //console.log(result);                     
             if (result.MajorCode == '000') {
@@ -3401,7 +3379,7 @@ function setAssetListPosInfo(listObj){
         'codes': codes,
     };
     //console.log(data);
-    JSON.requestPost(url,data, function(result){   
+    JSON1.requestPost(url,data, function(result){   
             //console.log(result);                       
             if (result.MajorCode == '000') {
                 var data = result.Data;    
@@ -3461,7 +3439,46 @@ function updateAlarmOptVal(alarmOptions) {
     localStorage.setItem("COM.QUIKTRAK.LIVE.ASSETLIST", JSON.stringify(assetList));
 }
 
-function getNewNotifications(){         
+
+function getNewData(){
+    //alert('here');
+    getPlusInfo();
+    //hideKeyboard();    
+    
+    var mobileToken = !localStorage.PUSH_MOBILE_TOKEN? '111' : localStorage.PUSH_MOBILE_TOKEN;
+    var appKey = !localStorage.PUSH_APP_KEY? '111' : localStorage.PUSH_APP_KEY;
+    var deviceToken = !localStorage.PUSH_DEVICE_TOKEN? '111' : localStorage.PUSH_DEVICE_TOKEN;
+    var deviceType = !localStorage.DEVICE_TYPE? 'android' : localStorage.DEVICE_TYPE;
+   
+   // alert('logged in');
+    
+    var urlLogin = API_URL.URL_GET_LOGIN.format(localStorage.ACCOUNT, 
+                                     encodeURIComponent(localStorage.PASSWORD), 
+                                     appKey, 
+                                     mobileToken, 
+                                     encodeURIComponent(deviceToken), 
+                                     deviceType);  
+    //alert(urlLogin); 
+    //console.log(urlLogin);                             
+    JSON1.request(urlLogin, function(result){
+           console.log(result);
+            if(result.MajorCode == '000') {                
+                setUserinfo(result.Data);
+                //setAssetList(result.Data.Devices); 
+                // updateUserCredits(result.Data.User.Credits);
+                // if (result.Data.Devices) {
+                //     updateAssetList2(result.Data.Devices);
+                // }
+                
+            }
+        },
+        function(){  }
+    ); 
+   
+
+}
+
+function getNewNotifications(params){         
     var userInfo = getUserinfo();    
     var MinorToken = !userInfo ? '': userInfo.MinorToken;
     var deviceToken = !localStorage.PUSH_DEVICE_TOKEN? '' : localStorage.PUSH_DEVICE_TOKEN;    
@@ -3474,12 +3491,13 @@ function getNewNotifications(){
         var url = API_URL.URL_GET_NEW_NOTIFICATIONS.format(MinorToken,deviceToken); 
         notificationChecked = 0;
 
-        JSON.request(url, function(result){
+        JSON1.request(url, function(result){
                 App.hideProgressbar();            
                 notificationChecked = 1;
-                if(window.plus) {
-                    plus.push.clear();
+                if (params && params.ptr === true) {
+                    App.pullToRefreshDone();
                 }
+               
                 
                 console.log(result);                       
                 if (result.MajorCode == '000') {
@@ -3487,11 +3505,28 @@ function getNewNotifications(){
                     if (Array.isArray(data) && data.length > 0) {
                         setNotificationList(result.Data);
 
-                        var page = App.getCurrentView().activePage;        
-                        if ( page && page.name != "notification" ) {
+                        var page = mainView.activePage;      
+                        if ( typeof(page) == 'undefined' || (page && page.name != "notification") ) {
                             $$('.notification_button').addClass('new_not');                    
                         }else{
                             showNotification(result.Data);
+                        }
+                    }
+
+                    if (params && params.loadPageNotification === true) {
+                        var user = localStorage.ACCOUNT;
+                        var notList = getNotificationList();   
+
+                        if (notList && notList[user] && notList[user].length > 0 || Array.isArray(data) && data.length > 0) {                           
+                            mainView.router.load({
+                                url:'resources/templates/notification.html',            
+                            });    
+                            $$('.notification_button').removeClass('new_not');      
+                        }else{
+                            App.addNotification({
+                                hold: 3000,
+                                message: LANGUAGE.PROMPT_MSG019                                   
+                            });
                         }
                     }
                     
@@ -3502,7 +3537,10 @@ function getNewNotifications(){
             },
             function(){
                 App.hideProgressbar();
-                notificationChecked = 1;            
+                notificationChecked = 1;  
+                if (params && params.ptr === true) {
+                    App.pullToRefreshDone();
+                }          
             }
         ); 
     }        
@@ -3663,30 +3701,35 @@ function processClickOnPushNotification(msgJ){
         if (msg && msg.time && msg.name && msg.title) {
             var activePage = App.getCurrentView().activePage;  
            
-            if ( typeof(activePage) == 'undefined' || (activePage && activePage.name != "notification")) {               
-                
-                if (parseFloat(msg.lat) && parseFloat(msg.lng)) {               
-                    TargetAsset.ASSET_IMEI = msg.imei;
-                    TargetAsset.ASSET_NAME = msg.name; 
-                    if (msg.time) {
-                        var localTime = moment.utc(msg.time).toDate();
-                        msg.time = moment(localTime).format(window.COM_TIMEFORMAT);                         
-                    }
-                    loadTrackPage(msg);
-                    
-                }else{
-                    App.alert(LANGUAGE.PROMPT_MSG023);
-                }
-            }else{                
+            //if ( typeof(activePage) == 'undefined' || (activePage && activePage.name != "notification")) {               
+           /* if ( typeof(activePage) == 'undefined' || (activePage && activePage.name != "notification")) {
                 mainView.router.refreshPage();
-            }       
+            }   */
+
+            if (parseFloat(msg.lat) && parseFloat(msg.lng)) {               
+                TargetAsset.ASSET_IMEI = msg.imei;
+                TargetAsset.ASSET_NAME = msg.name; 
+                if (msg.time) {
+                    var localTime = moment.utc(msg.time).toDate();
+                    msg.time = moment(localTime).format(window.COM_TIMEFORMAT);                         
+                }
+                loadTrackPage(msg);                    
+            }else{
+                App.alert(LANGUAGE.PROMPT_MSG023);
+            }
+            /*}else{                
+                mainView.router.refreshPage();
+            }   */    
         }  
     }          
 }
 
 
 function showMsgNotification(arrMsgJ){
+       
+                
     if (Array.isArray(arrMsgJ)) {
+        var page = App.getCurrentView().activePage;     
         var msg = null;
         if (arrMsgJ[0].payload) {
             msg = isJsonString(arrMsgJ[0].payload);
@@ -3700,24 +3743,92 @@ function showMsgNotification(arrMsgJ){
             }
         }    
         if (msg && msg.title && msg.name) {
-            var message = msg.name+'</br>'+msg.title;        
-            App.addNotification({
-                hold: 5000,
-                message: message,
-                button: {
-                    text: LANGUAGE.COM_MSG12,
-                    color: 'boatwatch',
-                    close: false,         
-                },
-                onClick: function () { 
-                    App.closeNotification('.notifications');
-                    $$('.notification_button').removeClass('new_not'); 
-                    
-                    mainView.router.loadPage('resources/templates/notification.html');
-                },                          
-            });             
+            if ( page.name != "notification" ) {
+                $$('.notification_button').addClass('new_not');
+                var message = msg.name+'</br>'+msg.title;        
+                App.addNotification({
+                    hold: 5000,
+                    message: message,
+                    button: {
+                        text: LANGUAGE.COM_MSG12,
+                        color: 'boatwatch',
+                        close: false,         
+                    },
+                    onClick: function () { 
+                        App.closeNotification('.notifications');
+                        $$('.notification_button').removeClass('new_not'); 
+                        
+                        //mainView.router.loadPage('resources/templates/notification.html');
+                        processClickOnPushNotification([msg]);
+
+                    },                          
+                });                
+            }
+                
+
+            if (msg.imei && msg.type && parseInt(msg.type) == 1024 ) {  //geolock                
+                var params = {
+                    id: '',
+                    imei: msg.imei,
+                    name: 'Geolock',
+                    state: false,
+                };               
+                setStatusNewState({
+                    asset: params.imei,                        
+                    forAlarm: params.name,
+                    state: params.state,                    
+                });  
+                changeIconColor(params);
+                changeSwitcherState(params);
+            }           
         }          
     }  
+}
+
+
+function changeIconColor(params){
+    if (params.name) {
+        var input = $$('.status_page [name='+params.name+']');
+        if (input) {
+            var parent = input.closest('.item-content');
+            var icon = parent.find('.item-media i');
+            if (params.state) {
+                
+                if (params.name == 'Immobilise') {
+                    $$(icon).removeClass('state-3 color-gray').addClass('state-3');
+                    $('#immob-state'+params.imei).removeClass('state-3 state-0').addClass('state-3');
+                }else{
+                    $$(icon).removeClass('state-1 color-gray').addClass('state-1');
+                    $('#geolock-state'+params.imei).removeClass('state-1 state-0').addClass('state-1');
+                }
+            }else{                
+                if (params.name == 'Immobilise') {
+                    $$(icon).removeClass('state-3 color-gray').addClass('color-gray');
+                    $('#immob-state'+params.imei).removeClass('state-3 state-0').addClass('state-0');
+                }else{
+                    $$(icon).removeClass('state-1 color-gray').addClass('color-gray');
+                    $('#geolock-state'+params.imei).removeClass('state-1 state-0').addClass('state-0');
+                }
+            }
+        }
+    }
+}
+
+function changeSwitcherState(params){   
+    if (params.name) {
+        var input = $$('.status_page [name='+params.name+']');       
+        if (input) {
+            input.prop('checked', params.state);                  
+        }
+    }
+}
+
+function setStatusNewState(params){   
+    if (params.state === true) {
+        POSINFOASSETLIST[params.asset].StatusNew = POSINFOASSETLIST[params.asset].StatusNew | Protocol.StatusNewEnum[params.forAlarm] ;
+    }else{
+        POSINFOASSETLIST[params.asset].StatusNew = POSINFOASSETLIST[params.asset].StatusNew & ~Protocol.StatusNewEnum[params.forAlarm] ;
+    }
 }
 
 function setGeoFenceList(list){
@@ -3888,58 +3999,38 @@ function saveImg(){
         error: function(XMLHttpRequest, textStatus, errorThrown){ 
            App.hidePreloader(); App.alert(LANGUAGE.COM_MSG02);
         }
-    });
-
-        
+    });       
     
 }   
 
-//Take pictures
-function getImage() {
-    if(window.plus){
-        var cmr = plus.camera.getCamera();
-        cmr.captureImage( function (p) {
-            plus.io.resolveLocalFileSystemURL( p, function ( entry ) {    
-                var localurl = entry.toLocalURL();//
-                GetBase64Code(localurl);
-            });
-        });
-    }else{
-        console.log('Plus not found');
-    }
-        
-}
-//Select from album
-function galleryImgs(){
-    if(window.plus){
-        plus.gallery.pick( function(e){
-            GetBase64Code(e.files[0]);
-        }, function ( e ) {
-            //outSet( "CANCEL SELECT" );
-        },{filter:"image",multiple:true, maximum:1});
-    }else{
-        console.log('Plus not found');
-    }
-        
-}
 
-function GetBase64Code(path) //image path
-{
-    var bitmap = new plus.nativeObj.Bitmap("test");
-    // load image
-    bitmap.load(path,function(){
-        var base4=bitmap.toBase64Data();        
+function getImage(source){
+    
+    if (!navigator.camera) {
+        alert("Camera API not supported", "Error");
         
-        mainView.router.load({
-            url: 'resources/templates/asset.edit.photo.html',
-            context: {
-                imgSrc: base4
-            }
-        });
-       
-        //console.log('IMAGEЈє'+base4);
-    },function(e){
-        //alert('ERRORЈє'+JSON.stringify(e));
-    });
-}
+    }else{
+        var options = { quality: 50,
+                        destinationType: Camera.DestinationType.DATA_URL,
+                        sourceType: source,      // 0:Photo Library, 1=Camera, 2=Saved Album
+                        encodingType: 0     // 0=JPG 1=PNG
+                      };
 
+        navigator.camera.getPicture(
+            function(imgData) {
+              //$('.media-object', this.$el).attr('src', "data:image/jpeg;base64,"+imgData);
+                mainView.router.load({
+                    url: 'resources/templates/asset.edit.photo.html',
+                    context: {
+                        imgSrc: "data:image/jpeg;base64,"+imgData
+                    }
+                });
+            
+            },
+            function() {
+                //alert('Error taking picture', 'Error');
+            },
+            options);
+    }
+           
+}
